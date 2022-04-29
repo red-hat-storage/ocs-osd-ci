@@ -6,10 +6,6 @@ install:
 	$(BIN)/pip install -U pip
 	$(BIN)/pip install -r requirements.txt
 
-	# Add root path to sys.path permanently.
-	SP_DIR=$$($(BIN)/python -c "import site; print(site.getsitepackages()[0])") && \
-		echo "${PWD}" > "$${SP_DIR}"/root.pth
-
 install-dev: install
 	$(BIN)/pip install -U tox
 	echo "make check" > .git/hooks/pre-commit
@@ -26,3 +22,6 @@ format-fix:
 
 lint:
 	$(BIN)/tox -e lint
+
+run-chaos:
+	$(BIN)/python -m src.cli.chaos

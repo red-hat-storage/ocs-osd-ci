@@ -1,1 +1,2 @@
 environs==9.5.0
+httpx==0.22.0

@@ -1,4 +1,6 @@
 *.env
 *.log
 venv
+.cluster
 .tox
+__pycache__

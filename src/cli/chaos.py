@@ -16,6 +16,8 @@ def main() -> int:
     provider_cluster_id = cluster_service.install(env("PROVIDER_CLUSTER_NAME"))
     logger.info("PROVIDER CLUSTER ID: %s", provider_cluster_id)
 
+    cluster_service.wait_for_cluster_ready(provider_cluster_id)
+
     logger.info("CHAOS testing completed.")
     return 0
 

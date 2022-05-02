@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 from typing import Any, Dict
 
 from src.util.util import create_json_file, download_file, env, run_cmd
@@ -60,6 +61,29 @@ class ClusterService:
             raise ValueError("No cluster info received.")
         cluster = json.loads(cluster_info.stdout)
         return cluster["id"]
+
+    @staticmethod
+    def get_cluster_status(cluster_id: str) -> bool:
+        # fmt: off
+        completed_process = run_cmd(
+            ["ocm", "get", f"/api/clusters_mgmt/v1/clusters/{cluster_id}"]
+        )
+        # fmt: on
+        return json.loads(completed_process.stdout)["status"]["state"]
+
+    def wait_for_cluster_ready(self, cluster_id: str, timeout: int = 5400) -> None:
+        start = time.time()
+        while True:
+            cluster_status = self.get_cluster_status(cluster_id)
+            if cluster_status == "ready":
+                logger.info("Cluster %s is ready.", cluster_id)
+                break
+            if cluster_status == "error":
+                raise ValueError(f"Cluster {cluster_id} is in error state.")
+            if (time.time() - start) > timeout:
+                raise RuntimeError("Timeout while waiting for cluster to be ready.")
+            logger.info("Waiting for cluster to be ready...")
+            time.sleep(60 * 5)
 
     def _gen_install_request_body(self, name: str) -> str:
         body = self._install_cluster_template.copy()

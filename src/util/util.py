@@ -32,7 +32,7 @@ def run_cmd(cmd: List[str]) -> subprocess.CompletedProcess:
     try:
         logger.info(cmd)
         completed_process: subprocess.CompletedProcess = subprocess.run(
-            cmd, check=True, text=True, capture_output=True
+            cmd, check=True, text=True, capture_output=True, timeout=10
         )
     except subprocess.CalledProcessError as error:
         logger.exception("Command failed:\n%s", error.stderr)

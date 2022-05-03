@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import time
+from enum import Enum
 from typing import Any, Dict
 
 from src.util.util import create_json_file, download_file, env, run_cmd
@@ -9,10 +10,19 @@ from src.util.util import create_json_file, download_file, env, run_cmd
 logger = logging.getLogger()
 
 
+class AddonId(Enum):
+    CONSUMER = "ocs-consumer"
+    PROVIDER = "ocs-provider"
+
+
 class ClusterService:
+    _addon_install_data: Dict[str, Any] = {
+        "addon": {"id": ""},
+        "parameters": {"items": []},
+    }
     _bin_dir: str = os.path.abspath(os.path.expanduser("~/bin"))
     _data_dir: str
-    _install_cluster_template: Dict[str, Any] = {
+    _cluster_install_data: Dict[str, Any] = {
         "aws": {
             "access_key_id": env("AWS_ACCESS_KEY_ID"),
             "account_id": env("AWS_ACCOUNT_ID"),
@@ -52,8 +62,8 @@ class ClusterService:
         # Install ocm.
         self._install_ocm()
 
-    def install(self, name: str) -> str:
-        body_file = self._gen_install_request_body(name)
+    def install(self, cluster_name: str) -> str:
+        body_file = self._get_cluster_install_request_file_path(cluster_name)
         cluster_info = run_cmd(
             ["ocm", "post", "/api/clusters_mgmt/v1/clusters", "--body", body_file]
         )
@@ -62,8 +72,31 @@ class ClusterService:
         cluster = json.loads(cluster_info.stdout)
         return cluster["id"]
 
+    def install_addon(
+        self, cluster_id: str, addon_id: str, addon_params: Dict[str, Any]
+    ) -> None:
+        body_file = self._get_addon_install_request_file_path(addon_id, addon_params)
+        addon_info = run_cmd(
+            # fmt: off
+            ["ocm", "post", f"/api/clusters_mgmt/v1/clusters/{cluster_id}/addons",
+             "--body", body_file]
+            # fmt: on
+        )
+        if not addon_info.stdout:
+            raise ValueError("No addon info received.")
+
     @staticmethod
-    def get_cluster_status(cluster_id: str) -> bool:
+    def get_addon_status(cluster_id: str, addon_id: str) -> str:
+        # fmt: off
+        completed_process = run_cmd(
+            ["ocm", "get",
+             f"/api/clusters_mgmt/v1/clusters/{cluster_id}/addons/{addon_id}"]
+        )
+        # fmt: on
+        return json.loads(completed_process.stdout)["state"]
+
+    @staticmethod
+    def get_cluster_status(cluster_id: str) -> str:
         # fmt: off
         completed_process = run_cmd(
             ["ocm", "get", f"/api/clusters_mgmt/v1/clusters/{cluster_id}"]
@@ -85,10 +118,19 @@ class ClusterService:
             logger.info("Waiting for cluster to be ready...")
             time.sleep(60 * 5)
 
-    def _gen_install_request_body(self, name: str) -> str:
-        body = self._install_cluster_template.copy()
-        body["name"] = name
-        return create_json_file(f"{self._data_dir}/install-{name}.json", body)
+    def _get_addon_install_request_file_path(
+        self, addon_id: str, params: Dict[str, Any]
+    ) -> str:
+        body = self._addon_install_data.copy()
+        body["addon"]["id"] = addon_id
+        for param_id, param_value in params.items():
+            body["parameters"]["items"].append({"id": param_id, "value": param_value})
+        return create_json_file(f"{self._data_dir}/install-{addon_id}.json", body)
+
+    def _get_cluster_install_request_file_path(self, cluster_name: str) -> str:
+        body = self._cluster_install_data.copy()
+        body["name"] = cluster_name
+        return create_json_file(f"{self._data_dir}/install-{cluster_name}.json", body)
 
     def _install_ocm(self) -> None:
         ocm_file = f"{self._bin_dir}/ocm"

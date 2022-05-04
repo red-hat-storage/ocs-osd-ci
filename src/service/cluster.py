@@ -1,11 +1,10 @@
 import json
 import logging
 import os
-import time
 from enum import Enum
 from typing import Any, Dict
 
-from src.util.util import create_json_file, download_file, env, run_cmd
+from src.util.util import create_json_file, download_file, env, run_cmd, wait_for
 
 logger = logging.getLogger()
 
@@ -104,19 +103,27 @@ class ClusterService:
         # fmt: on
         return json.loads(completed_process.stdout)["status"]["state"]
 
-    def wait_for_cluster_ready(self, cluster_id: str, timeout: int = 5400) -> None:
-        start = time.time()
-        while True:
-            cluster_status = self.get_cluster_status(cluster_id)
-            if cluster_status == "ready":
-                logger.info("Cluster %s is ready.", cluster_id)
-                break
-            if cluster_status == "error":
-                raise ValueError(f"Cluster {cluster_id} is in error state.")
-            if (time.time() - start) > timeout:
-                raise RuntimeError("Timeout while waiting for cluster to be ready.")
-            logger.info("Waiting for cluster to be ready...")
-            time.sleep(60 * 5)
+    @wait_for()
+    def wait_for_addon_ready(self, cluster_id: str, addon_id: str) -> bool:
+        addon_status = self.get_addon_status(cluster_id, addon_id)
+        if addon_status == "ready":
+            logger.info("Addon %s is ready.", addon_id)
+            return True
+        if addon_status == "error":
+            raise ValueError(f"Addon {addon_id} is in error state.")
+        logger.info("Addon %s is not ready yet...", addon_id)
+        return False
+
+    @wait_for()
+    def wait_for_cluster_ready(self, cluster_id: str) -> bool:
+        cluster_status = self.get_cluster_status(cluster_id)
+        if cluster_status == "ready":
+            logger.info("Cluster %s is ready.", cluster_id)
+            return True
+        if cluster_status == "error":
+            raise ValueError(f"Cluster {cluster_id} is in error state.")
+        logger.info("Cluster %s is not ready yet...", cluster_id)
+        return False
 
     def _get_addon_install_request_file_path(
         self, addon_id: str, params: Dict[str, Any]

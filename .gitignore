@@ -2,5 +2,6 @@
 *.log
 venv
 .cluster
+.test
 .tox
 __pycache__

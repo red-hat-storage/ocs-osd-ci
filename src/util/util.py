@@ -1,8 +1,10 @@
 import json
 import logging
 import subprocess
+import time
+from functools import wraps
 from logging.config import dictConfig
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 import httpx
 from environs import Env
@@ -38,7 +40,7 @@ def run_cmd(cmd: List[str]) -> subprocess.CompletedProcess:
         logger.exception("Command failed:\n%s", error.stderr)
         raise
     if completed_process.stdout:
-        logger.info(completed_process.stdout)
+        logger.debug(completed_process.stdout)
     return completed_process
 
 
@@ -68,6 +70,26 @@ def setup_logging():
                     "mode": "w+",
                 },
             },
-            "root": {"level": "INFO", "handlers": ["cli", "file"]},
+            "root": {"level": "DEBUG", "handlers": ["cli", "file"]},
         }
     )
+
+
+def wait_for(timeout: int = 5400, check_period: int = 300) -> Callable:
+    def inner(func: Callable):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            while True:
+                if timeout and (time.time() - start) > timeout:
+                    raise RuntimeError("Timeout while waiting for condition to be met.")
+                check_start = time.time()
+                if func(*args, **kwargs):
+                    break
+                check_duration = time.time() - check_start
+                if check_period > check_duration:
+                    time.sleep(check_period - check_duration)
+
+        return wrapper
+
+    return inner

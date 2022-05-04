@@ -37,11 +37,8 @@ def main() -> int:
     cluster_service.install_addon(
         provider_cluster_id, AddonId.PROVIDER.value, provider_addon_params
     )
-    # @TODO: Wait for addon to be installed.
-    provider_addon_status = cluster_service.get_addon_status(
-        provider_cluster_id, AddonId.PROVIDER.value
-    )
-    logger.info("Provider addon status: %s", provider_addon_status)
+    cluster_service.wait_for_addon_ready(provider_cluster_id, AddonId.PROVIDER.value)
+
     # @TODO: obtain storage provider endpoint.
     storage_provider_endpoint = ""
 
@@ -57,7 +54,7 @@ def main() -> int:
     cluster_service.install_addon(
         consumer_cluster_id, AddonId.CONSUMER.value, consumer_addon_params
     )
-    # Wait for addon to be installed.
+    cluster_service.wait_for_addon_ready(consumer_cluster_id, AddonId.CONSUMER.value)
 
     # @TODO: run ocs-monkey.
 

@@ -14,12 +14,6 @@ env.read_env()
 logger = logging.getLogger()
 
 
-def create_json_file(file_path: str, body: Dict) -> str:
-    with open(file_path, encoding="utf-8", mode="w") as file:
-        file.write(json.dumps(body, indent=2))
-    return file_path
-
-
 def download_file(url: str, file_path: str) -> None:
     logger.info("Downloading: %s to %s", url, file_path)
     with open(file_path, "wb") as file:
@@ -42,6 +36,16 @@ def run_cmd(cmd: List[str]) -> subprocess.CompletedProcess:
     if completed_process.stdout:
         logger.debug(completed_process.stdout)
     return completed_process
+
+
+def save_to_file(file_path: str, body: str) -> str:
+    with open(file_path, encoding="utf-8", mode="w") as file:
+        file.write(body)
+    return file_path
+
+
+def save_to_json_file(file_path: str, body: Dict) -> str:
+    return save_to_file(file_path, json.dumps(body, indent=2))
 
 
 def setup_logging():

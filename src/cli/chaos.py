@@ -39,16 +39,15 @@ def main() -> int:
     )
     cluster_service.wait_for_addon_ready(provider_cluster_id, AddonId.PROVIDER.value)
 
-    # @TODO: obtain storage provider endpoint.
-    storage_provider_endpoint = ""
-
     # Install consumer addon.
     # @TODO: obtain onboarding ticket.
     onboarding_ticket = ""
     consumer_addon_params = {
         "size": "1",
         "unit": "Ti",
-        "storage-provider-endpoint": storage_provider_endpoint,
+        "storage-provider-endpoint": cluster_service.get_storage_provider_endpoint(
+            provider_cluster_id
+        ),
         "onboarding-ticket": onboarding_ticket,
     }
     cluster_service.install_addon(

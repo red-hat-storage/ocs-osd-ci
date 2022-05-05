@@ -4,7 +4,15 @@ import os
 from enum import Enum
 from typing import Any, Dict
 
-from src.util.util import create_json_file, download_file, env, run_cmd, wait_for
+from src.platform.kube import KubeClient
+from src.util.util import (
+    download_file,
+    env,
+    run_cmd,
+    save_to_file,
+    save_to_json_file,
+    wait_for,
+)
 
 logger = logging.getLogger()
 
@@ -19,6 +27,7 @@ class ClusterService:
         "addon": {"id": ""},
         "parameters": {"items": []},
     }
+    _api_base_url = "/api/clusters_mgmt/v1/clusters"
     _bin_dir: str = os.path.abspath(os.path.expanduser("~/bin"))
     _data_dir: str
     _cluster_install_data: Dict[str, Any] = {
@@ -53,7 +62,7 @@ class ClusterService:
         self._ocm_config_file = f"{data_dir}/ocm.json"
         # Create data dir and ocm config file.
         os.makedirs(os.path.abspath(data_dir), exist_ok=True)
-        create_json_file(self._ocm_config_file, self._ocm_config_template)
+        save_to_json_file(self._ocm_config_file, self._ocm_config_template)
         # Set ocm config.
         os.environ["OCM_CONFIG"] = self._ocm_config_file
         # Create bin dir.
@@ -61,11 +70,16 @@ class ClusterService:
         # Install ocm.
         self._install_ocm()
 
+    def get_storage_provider_endpoint(self, cluster_id: str) -> str:
+        cluster_config_path = self._save_cluster_config_file(cluster_id)
+        kube_client = KubeClient(cluster_config_path)
+        storage_provider_endpoint = kube_client.get_storage_provider_endpoint()
+        logger.info("Storage Provider Endpoint: %s", storage_provider_endpoint)
+        return storage_provider_endpoint
+
     def install(self, cluster_name: str) -> str:
         body_file = self._get_cluster_install_request_file_path(cluster_name)
-        cluster_info = run_cmd(
-            ["ocm", "post", "/api/clusters_mgmt/v1/clusters", "--body", body_file]
-        )
+        cluster_info = run_cmd(["ocm", "post", self._api_base_url, "--body", body_file])
         if not cluster_info.stdout:
             raise ValueError("No cluster info received.")
         cluster = json.loads(cluster_info.stdout)
@@ -77,30 +91,23 @@ class ClusterService:
         body_file = self._get_addon_install_request_file_path(addon_id, addon_params)
         addon_info = run_cmd(
             # fmt: off
-            ["ocm", "post", f"/api/clusters_mgmt/v1/clusters/{cluster_id}/addons",
+            ["ocm", "post", f"{self._api_base_url}/{cluster_id}/addons",
              "--body", body_file]
             # fmt: on
         )
         if not addon_info.stdout:
             raise ValueError("No addon info received.")
 
-    @staticmethod
-    def get_addon_status(cluster_id: str, addon_id: str) -> str:
-        # fmt: off
+    def get_addon_status(self, cluster_id: str, addon_id: str) -> str:
         completed_process = run_cmd(
-            ["ocm", "get",
-             f"/api/clusters_mgmt/v1/clusters/{cluster_id}/addons/{addon_id}"]
+            ["ocm", "get", f"{self._api_base_url}/{cluster_id}/addons/{addon_id}"]
         )
-        # fmt: on
         return json.loads(completed_process.stdout)["state"]
 
-    @staticmethod
-    def get_cluster_status(cluster_id: str) -> str:
-        # fmt: off
+    def get_cluster_status(self, cluster_id: str) -> str:
         completed_process = run_cmd(
-            ["ocm", "get", f"/api/clusters_mgmt/v1/clusters/{cluster_id}"]
+            ["ocm", "get", f"{self._api_base_url}/{cluster_id}"]
         )
-        # fmt: on
         return json.loads(completed_process.stdout)["status"]["state"]
 
     @wait_for()
@@ -132,12 +139,12 @@ class ClusterService:
         body["addon"]["id"] = addon_id
         for param_id, param_value in params.items():
             body["parameters"]["items"].append({"id": param_id, "value": param_value})
-        return create_json_file(f"{self._data_dir}/install-{addon_id}.json", body)
+        return save_to_json_file(f"{self._data_dir}/install-{addon_id}.json", body)
 
     def _get_cluster_install_request_file_path(self, cluster_name: str) -> str:
         body = self._cluster_install_data.copy()
         body["name"] = cluster_name
-        return create_json_file(f"{self._data_dir}/install-{cluster_name}.json", body)
+        return save_to_json_file(f"{self._data_dir}/install-{cluster_name}.json", body)
 
     def _install_ocm(self) -> None:
         ocm_file = f"{self._bin_dir}/ocm"
@@ -149,3 +156,13 @@ class ClusterService:
             download_file(ocm_url, ocm_file)
 
         os.chmod(ocm_file, 0o755)
+
+    def _save_cluster_config_file(self, cluster_id: str) -> str:
+        config_file = f"{self._data_dir}/{cluster_id}-config.yaml"
+        if not os.path.exists(config_file):
+            response = run_cmd(
+                ["ocm", "get", f"{self._api_base_url}/{cluster_id}/credentials"]
+            )
+            cluster_config: str = json.loads(response.stdout)["kubeconfig"]
+            save_to_file(config_file, cluster_config)
+        return config_file

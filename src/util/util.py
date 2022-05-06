@@ -24,6 +24,11 @@ def download_file(url: str, file_path: str) -> None:
         file.write(response.content)
 
 
+def get_file_content(file_path: str) -> str:
+    with open(file_path, encoding="utf-8", mode="r") as file:
+        return file.read()
+
+
 def run_cmd(cmd: List[str]) -> subprocess.CompletedProcess:
     try:
         logger.info(cmd)
@@ -48,7 +53,7 @@ def save_to_json_file(file_path: str, body: Dict) -> str:
     return save_to_file(file_path, json.dumps(body, indent=2))
 
 
-def setup_logging():
+def setup_logging() -> None:
     dictConfig(
         {
             "version": 1,

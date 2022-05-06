@@ -15,14 +15,14 @@ logger = logging.getLogger()
 class AWSService:
     _ec2_client: EC2Client
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._ec2_client = boto3.client(
             "ec2",
             aws_access_key_id=env("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=env("AWS_SECRET_ACCESS_KEY"),
         )
 
-    def add_provider_addon_inbound_rules(self, cluster_name: str):
+    def add_provider_addon_inbound_rules(self, cluster_name: str) -> None:
         describe_result: DescribeSecurityGroupsResultTypeDef = (
             self._ec2_client.describe_security_groups(
                 Filters=[

@@ -8,6 +8,7 @@ from src.platform.kube import KubeClient
 from src.util.util import (
     download_file,
     env,
+    get_file_content,
     run_cmd,
     save_to_file,
     save_to_json_file,
@@ -56,19 +57,19 @@ class ClusterService:
         "redhat-external/protocol/openid-connect/token",
         "url": "https://api.stage.openshift.com",
     }
+    _onboarding_ticket_generator_file: str
+    _onboarding_private_key: str
 
-    def __init__(self, data_dir: str = ".cluster"):
-        self._data_dir = data_dir
-        self._ocm_config_file = f"{data_dir}/ocm.json"
-        # Create data dir and ocm config file.
-        os.makedirs(os.path.abspath(data_dir), exist_ok=True)
-        save_to_json_file(self._ocm_config_file, self._ocm_config_template)
-        # Set ocm config.
-        os.environ["OCM_CONFIG"] = self._ocm_config_file
-        # Create bin dir.
+    def __init__(self, data_dir: str = ".cluster") -> None:
         os.makedirs(self._bin_dir, exist_ok=True)
-        # Install ocm.
+
         self._install_ocm()
+
+        self._data_dir = data_dir
+        os.makedirs(os.path.abspath(self._data_dir), exist_ok=True)
+
+        self._set_ocm_config()
+        self._save_onboarding_ticket_required_files()
 
     def get_storage_provider_endpoint(self, cluster_id: str) -> str:
         cluster_config_path = self._save_cluster_config_file(cluster_id)
@@ -76,6 +77,13 @@ class ClusterService:
         storage_provider_endpoint = kube_client.get_storage_provider_endpoint()
         logger.info("Storage Provider Endpoint: %s", storage_provider_endpoint)
         return storage_provider_endpoint
+
+    def get_consumer_onboarding_ticket(self) -> str:
+        response = run_cmd(
+            [self._onboarding_ticket_generator_file, self._onboarding_private_key]
+        )
+        logger.info("Consumer Onboarding Ticket:\n%s", response.stdout)
+        return response.stdout
 
     def install(self, cluster_name: str) -> str:
         body_file = self._get_cluster_install_request_file_path(cluster_name)
@@ -147,15 +155,15 @@ class ClusterService:
         return save_to_json_file(f"{self._data_dir}/install-{cluster_name}.json", body)
 
     def _install_ocm(self) -> None:
-        ocm_file = f"{self._bin_dir}/ocm"
-        if not os.path.exists(f"{self._bin_dir}/ocm"):
+        ocm_binary = f"{self._bin_dir}/ocm"
+        if not os.path.exists(ocm_binary):
             ocm_url = (
                 "https://github.com/openshift-online/ocm-cli/releases/"
                 f"download/{env('OCM_VERSION')}/ocm-linux-amd64"
             )
-            download_file(ocm_url, ocm_file)
-
-        os.chmod(ocm_file, 0o755)
+            download_file(ocm_url, ocm_binary)
+        # Give execution permissions.
+        os.chmod(ocm_binary, 0o755)
 
     def _save_cluster_config_file(self, cluster_id: str) -> str:
         config_file = f"{self._data_dir}/{cluster_id}-config.yaml"
@@ -166,3 +174,28 @@ class ClusterService:
             cluster_config: str = json.loads(response.stdout)["kubeconfig"]
             save_to_file(config_file, cluster_config)
         return config_file
+
+    def _save_onboarding_ticket_required_files(self) -> None:
+        self._onboarding_ticket_generator_file = f"{self._data_dir}/ticketgen.sh"
+        if not os.path.exists(self._onboarding_ticket_generator_file):
+            download_file(
+                url="https://raw.githubusercontent.com/red-hat-storage/"
+                "ocs-operator/main/hack/ticketgen/ticketgen.sh",
+                file_path=self._onboarding_ticket_generator_file,
+            )
+            # Extend the ticket expiration date.
+            file_content = get_file_content(self._onboarding_ticket_generator_file)
+            file_content = file_content.replace("172800", "999999999")
+            save_to_file(self._onboarding_ticket_generator_file, file_content)
+            # Give execution permissions.
+            os.chmod(self._onboarding_ticket_generator_file, 0o755)
+        # Create the onboarding private key.
+        self._onboarding_private_key = f"{self._data_dir}/onboarding-private-key"
+        if not os.path.exists(self._onboarding_private_key):
+            save_to_file(self._onboarding_private_key, env("ONBOARDING_PRIVATE_KEY"))
+
+    def _set_ocm_config(self) -> None:
+        self._ocm_config_file = f"{self._data_dir}/ocm.json"
+        if not os.path.exists(self._ocm_config_file):
+            save_to_json_file(self._ocm_config_file, self._ocm_config_template)
+        os.environ["OCM_CONFIG"] = self._ocm_config_file

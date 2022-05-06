@@ -11,7 +11,7 @@ class KubeClient:
         load_kube_config(config_file=config_file)
         self._custom_objects_api = CustomObjectsApi()
 
-    def get_storage_provider_endpoint(self):
+    def get_storage_provider_endpoint(self) -> str:
         response: dict[
             str, Any
         ] = self._custom_objects_api.get_namespaced_custom_object(

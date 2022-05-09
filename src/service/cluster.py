@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from src.platform.kube import KubeClient
 from src.util.util import (
@@ -36,13 +36,12 @@ class ClusterService:
             "access_key_id": env("AWS_ACCESS_KEY_ID"),
             "account_id": env("AWS_ACCOUNT_ID"),
             "secret_access_key": env("AWS_SECRET_ACCESS_KEY"),
-            "subnet_ids": env.list("AWS_SUBNET_IDS"),
+            "subnet_ids": [],
         },
         "ccs": {"enabled": True},
         "cloud_provider": {"id": "aws"},
         "name": "",
         "nodes": {
-            "availability_zones": env.list("AWS_AVAILABILITY_ZONES"),
             "compute": 3,
             "compute_machine_type": {"id": "m5.4xlarge"},
         },
@@ -85,13 +84,33 @@ class ClusterService:
         logger.info("Consumer Onboarding Ticket:\n%s", response.stdout)
         return response.stdout
 
-    def install(self, cluster_name: str) -> str:
-        body_file = self._get_cluster_install_request_file_path(cluster_name)
-        cluster_info = run_cmd(["ocm", "post", self._api_base_url, "--body", body_file])
-        if not cluster_info.stdout:
+    def install(
+        self,
+        cluster_name: str,
+        subnets_ids: Optional[list[str]] = None,
+        availability_zones: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
+        request_body = self._cluster_install_data.copy()
+        request_body["name"] = cluster_name
+        if subnets_ids:
+            request_body["aws"]["subnet_ids"] = subnets_ids
+        elif env.list("AWS_SUBNET_IDS", default=[]):
+            request_body["aws"]["subnet_ids"] = env.list("AWS_SUBNET_IDS")
+        if availability_zones:
+            request_body["nodes"]["availability_zones"] = availability_zones
+        elif env.list("AWS_AVAILABILITY_ZONES", default=[]):
+            request_body["nodes"]["availability_zones"] = env.list(
+                "AWS_AVAILABILITY_ZONES"
+            )
+        # Save request body to a file in order to avoid passing secrets as CLI args.
+        body_file = save_to_json_file(
+            f"{self._data_dir}/install-cluster-{cluster_name}.json", request_body
+        )
+
+        result = run_cmd(["ocm", "post", self._api_base_url, "--body", body_file])
+        if not result.stdout:
             raise ValueError("No cluster info received.")
-        cluster = json.loads(cluster_info.stdout)
-        return cluster["id"]
+        return json.loads(result.stdout)
 
     def install_addon(
         self, cluster_id: str, addon_id: str, addon_params: Dict[str, Any]
@@ -106,21 +125,9 @@ class ClusterService:
         if not addon_info.stdout:
             raise ValueError("No addon info received.")
 
-    def get_addon_status(self, cluster_id: str, addon_id: str) -> str:
-        completed_process = run_cmd(
-            ["ocm", "get", f"{self._api_base_url}/{cluster_id}/addons/{addon_id}"]
-        )
-        return json.loads(completed_process.stdout)["state"]
-
-    def get_cluster_status(self, cluster_id: str) -> str:
-        completed_process = run_cmd(
-            ["ocm", "get", f"{self._api_base_url}/{cluster_id}"]
-        )
-        return json.loads(completed_process.stdout)["status"]["state"]
-
     @wait_for()
     def wait_for_addon_ready(self, cluster_id: str, addon_id: str) -> bool:
-        addon_status = self.get_addon_status(cluster_id, addon_id)
+        addon_status = self._get_addon_status(cluster_id, addon_id)
         if addon_status == "ready":
             logger.info("Addon %s is ready.", addon_id)
             return True
@@ -131,13 +138,15 @@ class ClusterService:
 
     @wait_for()
     def wait_for_cluster_ready(self, cluster_id: str) -> bool:
-        cluster_status = self.get_cluster_status(cluster_id)
+        cluster_info = self._get_cluster_info(cluster_id)
+        cluster_name = cluster_info["name"]
+        cluster_status = cluster_info["status"]["state"]
         if cluster_status == "ready":
-            logger.info("Cluster %s is ready.", cluster_id)
+            logger.info("Cluster %s is ready.", cluster_name)
             return True
         if cluster_status == "error":
-            raise ValueError(f"Cluster {cluster_id} is in error state.")
-        logger.info("Cluster %s is not ready yet...", cluster_id)
+            raise ValueError(f"Cluster {cluster_name} is in error state.")
+        logger.info("Cluster %s is not ready yet...", cluster_name)
         return False
 
     def _get_addon_install_request_file_path(
@@ -147,12 +156,21 @@ class ClusterService:
         body["addon"]["id"] = addon_id
         for param_id, param_value in params.items():
             body["parameters"]["items"].append({"id": param_id, "value": param_value})
-        return save_to_json_file(f"{self._data_dir}/install-{addon_id}.json", body)
+        return save_to_json_file(
+            f"{self._data_dir}/install-addon-{addon_id}.json", body
+        )
 
-    def _get_cluster_install_request_file_path(self, cluster_name: str) -> str:
-        body = self._cluster_install_data.copy()
-        body["name"] = cluster_name
-        return save_to_json_file(f"{self._data_dir}/install-{cluster_name}.json", body)
+    def _get_addon_status(self, cluster_id: str, addon_id: str) -> str:
+        completed_process = run_cmd(
+            ["ocm", "get", f"{self._api_base_url}/{cluster_id}/addons/{addon_id}"]
+        )
+        return json.loads(completed_process.stdout)["state"]
+
+    def _get_cluster_info(self, cluster_id: str) -> dict[str, Any]:
+        completed_process = run_cmd(
+            ["ocm", "get", f"{self._api_base_url}/{cluster_id}"]
+        )
+        return json.loads(completed_process.stdout)
 
     def _install_ocm(self) -> None:
         ocm_binary = f"{self._bin_dir}/ocm"

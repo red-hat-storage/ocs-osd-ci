@@ -16,18 +16,22 @@ def main() -> int:
 
     # Create provider cluster.
     provider_cluster_name = env("PROVIDER_CLUSTER_NAME")
-    provider_cluster_id = cluster_service.install(provider_cluster_name)
+    provider_cluster_id = cluster_service.install(provider_cluster_name)["id"]
     logger.info("PROVIDER CLUSTER ID: %s", provider_cluster_id)
-
-    # Create consumer cluster.
-    consumer_cluster_name = env("CONSUMER_CLUSTER_NAME")
-    consumer_cluster_id = cluster_service.install(consumer_cluster_name)
-    logger.info("CONSUMER CLUSTER ID: %s", consumer_cluster_id)
 
     # Add inbound rules required for provider addon installation.
     cluster_service.wait_for_cluster_ready(provider_cluster_id)
     aws_service = AWSService()
     aws_service.add_provider_addon_inbound_rules(provider_cluster_name)
+
+    # Create consumer cluster.
+    consumer_cluster_name = env("CONSUMER_CLUSTER_NAME")
+    provider_cluster_subnet_ids = aws_service.get_subnets(provider_cluster_name)
+    logger.info("PROVIDER CLUSTER SUBNET IDS: %s", provider_cluster_subnet_ids)
+    consumer_cluster_id = cluster_service.install(
+        consumer_cluster_name, provider_cluster_subnet_ids
+    )["id"]
+    logger.info("CONSUMER CLUSTER ID: %s", consumer_cluster_id)
 
     # Install provider addon.
     provider_addon_params = {

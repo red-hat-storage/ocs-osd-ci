@@ -5,6 +5,7 @@ from mypy_boto3_ec2.client import EC2Client
 from mypy_boto3_ec2.type_defs import (
     AuthorizeSecurityGroupIngressResultTypeDef,
     DescribeSecurityGroupsResultTypeDef,
+    DescribeSubnetsResultTypeDef,
 )
 
 from src.util.util import env
@@ -20,6 +21,7 @@ class AWSService:
             "ec2",
             aws_access_key_id=env("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=env("AWS_SECRET_ACCESS_KEY"),
+            region_name=env("AWS_REGION"),
         )
 
     def add_provider_addon_inbound_rules(self, cluster_name: str) -> None:
@@ -87,3 +89,11 @@ class AWSService:
         if not authorize_result["Return"]:
             logger.error(authorize_result)
             raise RuntimeError("EC2: error while adding inbound rules.")
+
+    def get_subnets(self, cluster_name: str) -> list[str]:
+        result: DescribeSubnetsResultTypeDef = self._ec2_client.describe_subnets(
+            Filters=[
+                {"Name": "tag:Name", "Values": [f"{cluster_name}-*"]},
+            ]
+        )
+        return [subnet["SubnetId"] for subnet in result["Subnets"]]

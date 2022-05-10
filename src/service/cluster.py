@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import random
+import string
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -124,6 +126,23 @@ class ClusterService:
         )
         if not addon_info.stdout:
             raise ValueError("No addon info received.")
+
+    @staticmethod
+    def random_cluster_name(prefix: str = "ci") -> str:
+        prefix = f"{prefix}-"
+        cluster_name_max_length = 15
+        if len(prefix) >= cluster_name_max_length:
+            raise ValueError(
+                "Cluster name cannot exceed max. length: " f"{cluster_name_max_length}"
+            )
+        random_suffix_length = len(prefix)
+        return "".join(
+            [prefix]
+            + [
+                random.choice(string.ascii_lowercase + string.digits)
+                for _ in range(cluster_name_max_length - random_suffix_length)
+            ]
+        )
 
     @wait_for()
     def wait_for_addon_ready(self, cluster_id: str, addon_id: str) -> bool:

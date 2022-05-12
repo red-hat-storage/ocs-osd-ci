@@ -6,7 +6,7 @@ import string
 from enum import Enum
 from typing import Any
 
-from src.platform.kube import KubeClient
+from src.platform.kube import CustomObjectRequest, KubeClient, NotFoundError
 from src.util.util import (
     download_file,
     env,
@@ -72,10 +72,24 @@ class ClusterService:
         self._set_ocm_config()
         self._save_onboarding_ticket_required_files()
 
-    def get_storage_provider_endpoint(self, cluster_id: str) -> str:
+    def get_addon_ocs_provider_storage_endpoint(self, cluster_id: str) -> str:
         cluster_config_path = self._save_cluster_config_file(cluster_id)
         kube_client = KubeClient(cluster_config_path)
-        storage_provider_endpoint = kube_client.get_storage_provider_endpoint()
+        request = CustomObjectRequest(
+            group="ocs.openshift.io",
+            name="ocs-storagecluster",
+            plural="storageclusters",
+        )
+        try:
+            storage_provider_endpoint = kube_client.get_object(request)["status"][
+                "storageProviderEndpoint"
+            ]
+        except NotFoundError:
+            logger.exception(
+                "Storage Cluster info not found "
+                "while retrieving the Storage Provider Endpoint."
+            )
+            raise
         logger.info("Storage Provider Endpoint: %s", storage_provider_endpoint)
         return storage_provider_endpoint
 
@@ -145,14 +159,14 @@ class ClusterService:
         )
 
     @wait_for()
-    def wait_for_addon_ready(self, cluster_id: str, addon_id: str) -> bool:
-        addon_status = self._get_addon_status(cluster_id, addon_id)
-        if addon_status == "ready":
-            logger.info("Addon %s is ready.", addon_id)
+    def wait_for_addon_ready(self, cluster_id: str, addon_id: AddonId) -> bool:
+        addon_status = self._get_addon_ocs_status(cluster_id)
+        if addon_status == "Succeeded":
+            logger.info("Addon %s is ready.", addon_id.value)
             return True
-        if addon_status == "error":
-            raise ValueError(f"Addon {addon_id} is in error state.")
-        logger.info("Addon %s is not ready yet...", addon_id)
+        if addon_status == "Failed":
+            raise ValueError(f"Addon {addon_id.value} is in Failed state.")
+        logger.info("Addon %s is not ready yet...", addon_id.value)
         return False
 
     @wait_for()
@@ -179,11 +193,24 @@ class ClusterService:
             f"{self._data_dir}/install-addon-{addon_id}.json", body
         )
 
-    def _get_addon_status(self, cluster_id: str, addon_id: str) -> str:
-        completed_process = run_cmd(
-            ["ocm", "get", f"{self._api_base_url}/{cluster_id}/addons/{addon_id}"]
+    def _get_addon_ocs_status(self, cluster_id: str) -> str:
+        cluster_config_path = self._save_cluster_config_file(cluster_id)
+        kube_client = KubeClient(cluster_config_path)
+        request = CustomObjectRequest(
+            group="operators.coreos.com",
+            version="v1alpha1",
+            plural="clusterserviceversions",
+            label_selector="operators.coreos.com/ocs-osd-deployer.openshift-storage",
         )
-        return json.loads(completed_process.stdout)["state"]
+        status = "Not Found"
+        try:
+            response = kube_client.list_objects(request)
+        except NotFoundError:
+            return status
+        if "items" in response and len(response["items"]) > 0:
+            status = response["items"][0]["status"]["phase"]
+        logger.debug("Addon status: %s", status)
+        return status
 
     def _get_cluster_info(self, cluster_id: str) -> dict[str, Any]:
         completed_process = run_cmd(

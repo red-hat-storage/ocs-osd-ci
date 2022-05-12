@@ -49,13 +49,13 @@ def main() -> int:
     cluster_service.install_addon(
         provider_cluster_id, AddonId.PROVIDER.value, provider_addon_params
     )
-    cluster_service.wait_for_addon_ready(provider_cluster_id, AddonId.PROVIDER.value)
+    cluster_service.wait_for_addon_ready(provider_cluster_id, AddonId.PROVIDER)
 
     # Install consumer addon.
     consumer_addon_params = {
         "size": "1",
         "unit": "Ti",
-        "storage-provider-endpoint": cluster_service.get_storage_provider_endpoint(
+        "storage-provider-endpoint": cluster_service.get_addon_ocs_provider_storage_endpoint(
             provider_cluster_id
         ),
         "onboarding-ticket": cluster_service.get_consumer_onboarding_ticket(),
@@ -63,7 +63,7 @@ def main() -> int:
     cluster_service.install_addon(
         consumer_cluster_id, AddonId.CONSUMER.value, consumer_addon_params
     )
-    cluster_service.wait_for_addon_ready(consumer_cluster_id, AddonId.CONSUMER.value)
+    cluster_service.wait_for_addon_ready(consumer_cluster_id, AddonId.CONSUMER)
 
     # @TODO: run ocs-monkey.
 

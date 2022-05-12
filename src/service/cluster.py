@@ -200,7 +200,7 @@ class ClusterService:
             )
             download_file(ocm_url, ocm_binary)
         # Give execution permissions.
-        os.chmod(ocm_binary, 0o755)
+        os.chmod(ocm_binary, 0o700)
 
     def _save_cluster_config_file(self, cluster_id: str) -> str:
         config_file = f"{self._data_dir}/{cluster_id}-config.yaml"
@@ -225,7 +225,7 @@ class ClusterService:
             file_content = file_content.replace("172800", "999999999")
             save_to_file(self._onboarding_ticket_generator_file, file_content)
             # Give execution permissions.
-            os.chmod(self._onboarding_ticket_generator_file, 0o755)
+            os.chmod(self._onboarding_ticket_generator_file, 0o700)
         # Create the onboarding private key.
         self._onboarding_private_key = f"{self._data_dir}/onboarding-private-key"
         if not os.path.exists(self._onboarding_private_key):

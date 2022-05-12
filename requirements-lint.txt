@@ -1,0 +1,4 @@
+bandit==1.7.4
+mypy==0.950
+pylint==2.13.8
+vulture==2.3.0

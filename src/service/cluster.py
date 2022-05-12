@@ -4,7 +4,7 @@ import os
 import random
 import string
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.platform.kube import KubeClient
 from src.util.util import (
@@ -26,14 +26,14 @@ class AddonId(Enum):
 
 
 class ClusterService:
-    _addon_install_data: Dict[str, Any] = {
+    _addon_install_data: dict[str, Any] = {
         "addon": {"id": ""},
         "parameters": {"items": []},
     }
     _api_base_url = "/api/clusters_mgmt/v1/clusters"
     _bin_dir: str = os.path.abspath(os.path.expanduser("~/bin"))
     _data_dir: str
-    _cluster_install_data: Dict[str, Any] = {
+    _cluster_install_data: dict[str, Any] = {
         "aws": {
             "access_key_id": env("AWS_ACCESS_KEY_ID"),
             "account_id": env("AWS_ACCOUNT_ID"),
@@ -50,7 +50,7 @@ class ClusterService:
         "region": {"id": env("AWS_REGION")},
     }
     _ocm_config_file: str
-    _ocm_config_template: Dict[str, str | list[str]] = {
+    _ocm_config_template: dict[str, str | list[str]] = {
         "client_id": "cloud-services",
         "refresh_token": env("OCM_REFRESH_TOKEN"),
         "scopes": ["openid"],
@@ -89,8 +89,8 @@ class ClusterService:
     def install(
         self,
         cluster_name: str,
-        subnets_ids: Optional[list[str]] = None,
-        availability_zones: Optional[list[str]] = None,
+        subnets_ids: list[str] | None = None,
+        availability_zones: list[str] | None = None,
     ) -> dict[str, Any]:
         request_body = self._cluster_install_data.copy()
         request_body["name"] = cluster_name
@@ -115,7 +115,7 @@ class ClusterService:
         return json.loads(result.stdout)
 
     def install_addon(
-        self, cluster_id: str, addon_id: str, addon_params: Dict[str, Any]
+        self, cluster_id: str, addon_id: str, addon_params: dict[str, Any]
     ) -> None:
         body_file = self._get_addon_install_request_file_path(addon_id, addon_params)
         addon_info = run_cmd(
@@ -169,7 +169,7 @@ class ClusterService:
         return False
 
     def _get_addon_install_request_file_path(
-        self, addon_id: str, params: Dict[str, Any]
+        self, addon_id: str, params: dict[str, Any]
     ) -> str:
         body = self._addon_install_data.copy()
         body["addon"]["id"] = addon_id

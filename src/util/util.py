@@ -2,9 +2,10 @@ import json
 import logging
 import subprocess
 import time
+from collections.abc import Callable
 from functools import wraps
 from logging.config import dictConfig
-from typing import Callable, Dict, List
+from math import ceil
 
 import httpx
 from environs import Env
@@ -29,9 +30,9 @@ def get_file_content(file_path: str) -> str:
         return file.read()
 
 
-def run_cmd(cmd: List[str]) -> subprocess.CompletedProcess:
+def run_cmd(cmd: list[str]) -> subprocess.CompletedProcess:
+    logger.info(cmd)
     try:
-        logger.info(cmd)
         completed_process: subprocess.CompletedProcess = subprocess.run(
             cmd, check=True, text=True, capture_output=True, timeout=10
         )
@@ -49,7 +50,7 @@ def save_to_file(file_path: str, body: str) -> str:
     return file_path
 
 
-def save_to_json_file(file_path: str, body: Dict) -> str:
+def save_to_json_file(file_path: str, body: dict) -> str:
     return save_to_file(file_path, json.dumps(body, indent=2))
 
 
@@ -85,19 +86,20 @@ def setup_logging() -> None:
 
 
 def wait_for(timeout: int = 5400, check_period: int = 300) -> Callable:
+    if timeout <= 0 or check_period <= 0:
+        raise ValueError("Timeout and check period must be positive integers.")
+
     def inner(func: Callable):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            start = time.time()
-            while True:
-                if timeout and (time.time() - start) > timeout:
-                    raise RuntimeError("Timeout while waiting for condition to be met.")
+            for _ in range(ceil(timeout / check_period)):
                 check_start = time.time()
                 if func(*args, **kwargs):
-                    break
+                    return
                 check_duration = time.time() - check_start
                 if check_period > check_duration:
                     time.sleep(check_period - check_duration)
+            raise RuntimeError("Timeout while waiting for condition to be met.")
 
         return wrapper
 

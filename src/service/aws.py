@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 
 import boto3
 from mypy_boto3_ec2.client import EC2Client
@@ -11,6 +12,12 @@ from mypy_boto3_ec2.type_defs import (
 from src.util.util import env
 
 logger = logging.getLogger()
+
+
+@dataclass
+class ClusterSubnetsInfo:
+    availability_zones: list[str]
+    subnet_ids: list[str]
 
 
 class AWSService:
@@ -90,10 +97,27 @@ class AWSService:
             logger.error(authorize_result)
             raise RuntimeError("EC2: error while adding inbound rules.")
 
-    def get_subnets(self, cluster_name: str) -> list[str]:
+    def get_subnets_info(self, cluster_name: str) -> ClusterSubnetsInfo:
         result: DescribeSubnetsResultTypeDef = self._ec2_client.describe_subnets(
             Filters=[
                 {"Name": "tag:Name", "Values": [f"{cluster_name}-*"]},
             ]
         )
-        return [subnet["SubnetId"] for subnet in result["Subnets"]]
+        subnet_ids = []
+        availability_zones = []
+        if "Subnets" in result:
+            for subnet in result["Subnets"]:
+                subnet_ids.append(subnet["SubnetId"])
+                availability_zones.append(subnet["AvailabilityZone"])
+        subnet_ids = list(set(subnet_ids))
+        availability_zones = list(set(availability_zones))
+        logger.info(
+            "%s cluster:\nSUBNET IDs: %s\nAVAILABILITY ZONES: %s",
+            cluster_name,
+            subnet_ids,
+            availability_zones,
+        )
+        return ClusterSubnetsInfo(
+            subnet_ids=subnet_ids,
+            availability_zones=availability_zones,
+        )

@@ -29,15 +29,16 @@ def main() -> int:
     aws_service.add_provider_addon_inbound_rules(provider_cluster_name)
 
     # Create consumer cluster.
-    provider_cluster_subnet_ids = aws_service.get_subnets(provider_cluster_name)
-    logger.info("PROVIDER CLUSTER SUBNET IDS: %s", provider_cluster_subnet_ids)
+    provider_cluster_subnet_info = aws_service.get_subnets_info(provider_cluster_name)
     consumer_cluster_name = env(
         "CONSUMER_CLUSTER_NAME",
         default=ClusterService.random_cluster_name(prefix="chaos-c"),
     )
     logger.info("CONSUMER CLUSTER NAME: %s", consumer_cluster_name)
     consumer_cluster_id = cluster_service.install(
-        consumer_cluster_name, provider_cluster_subnet_ids
+        cluster_name=consumer_cluster_name,
+        subnets_ids=provider_cluster_subnet_info.subnet_ids,
+        availability_zones=provider_cluster_subnet_info.availability_zones,
     )["id"]
     logger.info("CONSUMER CLUSTER ID: %s", consumer_cluster_id)
 

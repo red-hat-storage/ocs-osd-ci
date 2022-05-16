@@ -49,6 +49,7 @@ class ClusterService:
         },
         "region": {"id": env("AWS_REGION")},
     }
+    _kube_client_instances: dict[str, KubeClient] = {}
     _ocm_config_file: str
     _ocm_config_template: dict[str, str | list[str]] = {
         "client_id": "cloud-services",
@@ -73,8 +74,7 @@ class ClusterService:
         self._save_onboarding_ticket_required_files()
 
     def get_addon_ocs_provider_storage_endpoint(self, cluster_id: str) -> str:
-        cluster_config_path = self._save_cluster_config_file(cluster_id)
-        kube_client = KubeClient(cluster_config_path)
+        kube_client = self._get_kube_client(cluster_id)
         request = CustomObjectRequest(
             group="ocs.openshift.io",
             name="ocs-storagecluster",
@@ -174,7 +174,9 @@ class ClusterService:
         cluster_info = self._get_cluster_info(cluster_id)
         cluster_name = cluster_info["name"]
         cluster_status = cluster_info["status"]["state"]
-        if cluster_status == "ready":
+        if cluster_status == "ready" and False not in self._get_cluster_nodes_statuses(
+            cluster_id
+        ):
             logger.info("Cluster %s is ready.", cluster_name)
             return True
         if cluster_status == "error":
@@ -194,8 +196,7 @@ class ClusterService:
         )
 
     def _get_addon_ocs_status(self, cluster_id: str) -> str:
-        cluster_config_path = self._save_cluster_config_file(cluster_id)
-        kube_client = KubeClient(cluster_config_path)
+        kube_client = self._get_kube_client(cluster_id)
         request = CustomObjectRequest(
             group="operators.coreos.com",
             version="v1alpha1",
@@ -217,6 +218,16 @@ class ClusterService:
             ["ocm", "get", f"{self._api_base_url}/{cluster_id}"]
         )
         return json.loads(completed_process.stdout)
+
+    def _get_cluster_nodes_statuses(self, cluster_id: str) -> list[bool]:
+        return self._get_kube_client(cluster_id).list_nodes_statuses()
+
+    def _get_kube_client(self, cluster_id: str) -> KubeClient:
+        if cluster_id in self._kube_client_instances:
+            return self._kube_client_instances[cluster_id]
+        cluster_config_path = self._save_cluster_config_file(cluster_id)
+        self._kube_client_instances[cluster_id] = KubeClient(cluster_config_path)
+        return self._kube_client_instances[cluster_id]
 
     def _install_ocm(self) -> None:
         ocm_binary = f"{self._bin_dir}/ocm"

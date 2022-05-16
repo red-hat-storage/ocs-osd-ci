@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import Any
 
-from kubernetes.client import CustomObjectsApi  # type: ignore
+from kubernetes.client import CoreV1Api, CustomObjectsApi  # type: ignore
 from kubernetes.client.exceptions import ApiException  # type: ignore
 from kubernetes.config import load_kube_config  # type: ignore
 
@@ -45,10 +45,12 @@ class CustomObjectRequest:
 
 
 class KubeClient:
+    _core_v1_api: CoreV1Api
     _custom_objects_api: CustomObjectsApi
 
     def __init__(self, config_file: str) -> None:
         load_kube_config(config_file=config_file)
+        self._core_v1_api = CoreV1Api()
         self._custom_objects_api = CustomObjectsApi()
 
     @handle_error
@@ -63,6 +65,21 @@ class KubeClient:
             namespace=request.namespace,
         )
         return response
+
+    @handle_error
+    def list_nodes_statuses(self) -> list[bool]:
+        statuses = []
+        response = self._core_v1_api.list_node()
+        for node in response.items:
+            for condition in node.status.conditions:
+                if condition.type == "Ready":
+                    logger.debug(
+                        "Ready status of node %s: %s",
+                        node.metadata.name,
+                        condition.status,
+                    )
+                    statuses.append(condition.status)
+        return statuses
 
     @handle_error
     def list_objects(self, request: CustomObjectRequest) -> dict:

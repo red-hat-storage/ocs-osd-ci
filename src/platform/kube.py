@@ -6,7 +6,7 @@ from typing import Any
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi  # type: ignore
 from kubernetes.client.exceptions import ApiException  # type: ignore
-from kubernetes.config import load_kube_config  # type: ignore
+from kubernetes.config import new_client_from_config  # type: ignore
 
 logger = logging.getLogger()
 
@@ -49,9 +49,9 @@ class KubeClient:
     _custom_objects_api: CustomObjectsApi
 
     def __init__(self, config_file: str) -> None:
-        load_kube_config(config_file=config_file)
-        self._core_v1_api = CoreV1Api()
-        self._custom_objects_api = CustomObjectsApi()
+        api_client = new_client_from_config(config_file=config_file)
+        self._core_v1_api = CoreV1Api(api_client=api_client)
+        self._custom_objects_api = CustomObjectsApi(api_client=api_client)
 
     @handle_error
     def get_object(self, request: CustomObjectRequest) -> dict:

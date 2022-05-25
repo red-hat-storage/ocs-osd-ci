@@ -1,27 +1,29 @@
+PY_BIN := python3
 VENV := venv
-BIN=$(VENV)/bin
+BIN_DIR=$(VENV)/bin
+APP_ENV := production
 
 install:
-	python3 -m venv $(VENV)
-	$(BIN)/pip install -U pip
-	$(BIN)/pip install -r requirements.txt
-
-install-dev: install
-	$(BIN)/pip install -U tox
-	echo "make check" > .git/hooks/pre-commit
-	chmod +x .git/hooks/pre-commit
+	$(PY_BIN) -m venv $(VENV)
+	$(BIN_DIR)/pip install -U pip
+	$(BIN_DIR)/pip install -r requirements.txt
+    ifeq ("$(APP_ENV)", "dev")
+		$(BIN_DIR)/pip install -U tox
+		echo "make check" > .git/hooks/pre-commit
+		chmod +x .git/hooks/pre-commit
+    endif
 
 check:
-	$(BIN)/tox
+	$(BIN_DIR)/tox
 
 format:
-	$(BIN)/tox -e format
+	$(BIN_DIR)/tox -e format
 
 format-fix:
-	$(BIN)/tox -e format-fix
+	$(BIN_DIR)/tox -e format-fix
 
 lint:
-	$(BIN)/tox -e lint
+	$(BIN_DIR)/tox -e lint
 
 run-chaos:
-	$(BIN)/python -m src.cli.chaos
+	$(BIN_DIR)/python -m src.cli.chaos

@@ -12,7 +12,7 @@ install-dev: install
 	chmod +x .git/hooks/pre-commit
 
 check:
-	$(BIN)/tox -e format,lint
+	$(BIN)/tox
 
 format:
 	$(BIN)/tox -e format

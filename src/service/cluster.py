@@ -4,7 +4,7 @@ import os
 import random
 import string
 from enum import Enum
-from typing import Any
+from typing import Any, Optional, Union
 
 from src.platform.kube import CustomObjectRequest, KubeClient, NotFoundError
 from src.util.util import (
@@ -51,7 +51,7 @@ class ClusterService:
     }
     _kube_client_instances: dict[str, KubeClient] = {}
     _ocm_config_file: str
-    _ocm_config_template: dict[str, str | list[str]] = {
+    _ocm_config_template: dict[str, Union[str, list[str]]] = {
         "client_id": "cloud-services",
         "refresh_token": env("OCM_REFRESH_TOKEN"),
         "scopes": ["openid"],
@@ -103,8 +103,8 @@ class ClusterService:
     def install(
         self,
         cluster_name: str,
-        subnets_ids: list[str] | None = None,
-        availability_zones: list[str] | None = None,
+        subnets_ids: Optional[list[str]] = None,
+        availability_zones: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         request_body = self._cluster_install_data.copy()
         request_body["name"] = cluster_name

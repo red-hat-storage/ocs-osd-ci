@@ -2,7 +2,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any
+from typing import Any, Optional
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi  # type: ignore
 from kubernetes.client.exceptions import ApiException  # type: ignore
@@ -38,8 +38,8 @@ def handle_error(func: Callable):
 class CustomObjectRequest:
     group: str
     plural: str
-    label_selector: str | None = None
-    name: str | None = None
+    label_selector: Optional[str] = None
+    name: Optional[str] = None
     namespace: str = "openshift-storage"
     version: str = "v1"
 

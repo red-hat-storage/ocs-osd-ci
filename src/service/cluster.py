@@ -81,9 +81,9 @@ class ClusterService:
             plural="storageclusters",
         )
         try:
-            storage_provider_endpoint = kube_client.get_object(request)["status"][
-                "storageProviderEndpoint"
-            ]
+            storage_provider_endpoint = kube_client.get_object(
+                request
+            ).status.storage_provider_endpoint
         except NotFoundError:
             logger.exception(
                 "Storage Cluster info not found "
@@ -208,8 +208,8 @@ class ClusterService:
             response = kube_client.list_objects(request)
         except NotFoundError:
             return status
-        if "items" in response and len(response["items"]) > 0:
-            status = response["items"][0]["status"]["phase"]
+        if len(response.items) > 0:
+            status = response.items[0].status.phase
         logger.debug("Addon status: %s", status)
         return status
 

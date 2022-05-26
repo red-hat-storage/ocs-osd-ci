@@ -6,6 +6,7 @@ from collections.abc import Callable
 from functools import wraps
 from logging.config import dictConfig
 from math import ceil
+from typing import Any
 
 import httpx
 from environs import Env
@@ -30,10 +31,10 @@ def get_file_content(file_path: str) -> str:
         return file.read()
 
 
-def run_cmd(cmd: list[str]) -> subprocess.CompletedProcess:
+def run_cmd(cmd: list[str]) -> subprocess.CompletedProcess[str]:
     logger.info(cmd)
     try:
-        completed_process: subprocess.CompletedProcess = subprocess.run(
+        completed_process = subprocess.run(
             cmd, check=True, text=True, capture_output=True, timeout=10
         )
     except subprocess.CalledProcessError as error:
@@ -50,7 +51,7 @@ def save_to_file(file_path: str, body: str) -> str:
     return file_path
 
 
-def save_to_json_file(file_path: str, body: dict) -> str:
+def save_to_json_file(file_path: str, body: dict[str, Any]) -> str:
     return save_to_file(file_path, json.dumps(body, indent=2))
 
 
@@ -85,13 +86,13 @@ def setup_logging() -> None:
     )
 
 
-def wait_for(timeout: int = 5400, check_period: int = 300) -> Callable:
+def wait_for(timeout: int = 5400, check_period: int = 300) -> Callable[[Any], Any]:
     if timeout <= 0 or check_period <= 0:
         raise ValueError("Timeout and check period must be positive integers.")
 
-    def inner(func: Callable):
+    def inner(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> None:
             for _ in range(ceil(timeout / check_period)):
                 check_start = time.time()
                 if func(*args, **kwargs):

@@ -7,6 +7,7 @@ from typing import Any, Optional
 from kubernetes.client import CoreV1Api, CustomObjectsApi  # type: ignore
 from kubernetes.client.exceptions import ApiException  # type: ignore
 from kubernetes.config import new_client_from_config  # type: ignore
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger()
 
@@ -15,9 +16,9 @@ class NotFoundError(Exception):
     pass
 
 
-def handle_error(func: Callable):
+def handle_error(func: Callable) -> Callable:  # type: ignore
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
         try:
             return func(*args, **kwargs)
         except ApiException as error:
@@ -44,6 +45,30 @@ class CustomObjectRequest:
     version: str = "v1"
 
 
+class KubeResponseMetadata(BaseModel):
+    name: str
+
+
+class KubeResponseStatusCondition(BaseModel):
+    status: bool = False
+    type: str = ""
+
+
+class KubeResponseStatus(BaseModel):
+    conditions: list[KubeResponseStatusCondition] = []
+    phase: str
+    storage_provider_endpoint: str = Field(alias="storageProviderEndpoint", default="")
+
+
+class KubeResponse(BaseModel):
+    metadata: KubeResponseMetadata
+    status: KubeResponseStatus
+
+
+class KubeResponseList(BaseModel):
+    items: list[KubeResponse] = []
+
+
 class KubeClient:
     _core_v1_api: CoreV1Api
     _custom_objects_api: CustomObjectsApi
@@ -54,22 +79,21 @@ class KubeClient:
         self._custom_objects_api = CustomObjectsApi(api_client=api_client)
 
     @handle_error
-    def get_object(self, request: CustomObjectRequest) -> dict:
-        response: dict[
-            str, Any
-        ] = self._custom_objects_api.get_namespaced_custom_object(
-            group=request.group,
-            version=request.version,
-            name=request.name,
-            plural=request.plural,
-            namespace=request.namespace,
+    def get_object(self, request: CustomObjectRequest) -> KubeResponse:
+        return KubeResponse(
+            **self._custom_objects_api.get_namespaced_custom_object(
+                group=request.group,
+                version=request.version,
+                name=request.name,
+                plural=request.plural,
+                namespace=request.namespace,
+            )
         )
-        return response
 
     @handle_error
     def list_nodes_statuses(self) -> list[bool]:
         statuses = []
-        response = self._core_v1_api.list_node()
+        response: KubeResponseList = self._core_v1_api.list_node()
         for node in response.items:
             for condition in node.status.conditions:
                 if condition.type == "Ready":
@@ -82,14 +106,13 @@ class KubeClient:
         return statuses
 
     @handle_error
-    def list_objects(self, request: CustomObjectRequest) -> dict:
-        response: dict[
-            str, Any
-        ] = self._custom_objects_api.list_namespaced_custom_object(
-            group=request.group,
-            version=request.version,
-            plural=request.plural,
-            namespace=request.namespace,
-            label_selector=request.label_selector,
+    def list_objects(self, request: CustomObjectRequest) -> KubeResponseList:
+        return KubeResponseList(
+            **self._custom_objects_api.list_namespaced_custom_object(
+                group=request.group,
+                version=request.version,
+                plural=request.plural,
+                namespace=request.namespace,
+                label_selector=request.label_selector,
+            )
         )
-        return response

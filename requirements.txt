@@ -3,3 +3,4 @@ boto3-stubs[ec2]==1.22.5
 environs==9.5.0
 httpx==0.22.0
 kubernetes==23.3.0
+pydantic==1.9.1

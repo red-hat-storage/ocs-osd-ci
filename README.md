@@ -9,10 +9,12 @@ make install  # PY_BIN=python3.9 VENV=venv39
 
 ## Development
 
-Install development dependencies and set up pre-commit hook:
+Install the app for development (it also creates the *.env* file if it doesn't exist):
 ```
 make install APP_ENV=dev
 ```
+
+You have to provide the values for the required variables in the *.env* file.
 
 Run sanity checks:
 ```

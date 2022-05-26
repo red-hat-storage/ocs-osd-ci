@@ -11,6 +11,7 @@ install:
 		$(BIN_DIR)/pip install -U tox
 		echo "make check" > .git/hooks/pre-commit
 		chmod +x .git/hooks/pre-commit
+		cp -n .env.example .env
     endif
 
 check:

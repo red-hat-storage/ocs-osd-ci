@@ -11,7 +11,7 @@ logger = logging.getLogger()
 
 
 def main() -> int:
-    logger.info("CHAOS testing: setting up...")
+    logger.info("Starting consumer addon installation...")
     cluster_service = ClusterService()
 
     # Create provider cluster.
@@ -66,9 +66,7 @@ def main() -> int:
     )
     cluster_service.wait_for_addon_ready(consumer_cluster_id, AddonId.CONSUMER)
 
-    # @TODO: run ocs-monkey.
-
-    logger.info("CHAOS testing completed.")
+    logger.info("Consumer addon installation completed.")
     return 0
 
 

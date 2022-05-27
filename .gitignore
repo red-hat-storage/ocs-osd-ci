@@ -1,5 +1,6 @@
 *.env
 *.log
+ocs-monkey
 venv
 .cluster
 .test

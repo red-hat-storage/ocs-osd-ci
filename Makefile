@@ -14,6 +14,9 @@ install:
 		cp -n .env.example .env
     endif
 
+install-consumer-addon:
+	$(BIN_DIR)/python -m src.cli.consumer_addon
+
 check:
 	$(BIN_DIR)/tox
 
@@ -27,4 +30,4 @@ lint:
 	$(BIN_DIR)/tox -e lint
 
 run-chaos:
-	$(BIN_DIR)/python -m src.cli.chaos
+	./scripts/jenkins/run-chaos.sh

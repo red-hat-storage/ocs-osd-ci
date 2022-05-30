@@ -21,8 +21,8 @@ logger = logging.getLogger()
 
 
 class AddonId(Enum):
-    CONSUMER = "ocs-consumer"
-    PROVIDER = "ocs-provider"
+    CONSUMER = "ocs-consumer-dev"
+    PROVIDER = "ocs-provider-dev"
 
 
 class ClusterService:

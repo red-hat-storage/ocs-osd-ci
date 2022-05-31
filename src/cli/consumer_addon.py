@@ -53,6 +53,7 @@ def main() -> int:
     cluster_service.wait_for_addon_ready(provider_cluster_id, AddonId.PROVIDER)
 
     # Install consumer addon.
+    cluster_service.wait_for_cluster_ready(consumer_cluster_id)
     consumer_addon_params = {
         "size": "1",
         "unit": "Ti",

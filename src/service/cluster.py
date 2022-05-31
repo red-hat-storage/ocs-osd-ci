@@ -4,6 +4,7 @@ import os
 import random
 import string
 from enum import Enum
+from shutil import copy
 from typing import Any, Optional, Union
 
 from src.platform.kube import CustomObjectRequest, KubeClient, NotFoundError
@@ -158,6 +159,10 @@ class ClusterService:
             ]
         )
 
+    def share_kubeconfig_file(self, cluster_id: str, target_file: str) -> None:
+        config_file = self._save_cluster_config_file(cluster_id)
+        copy(src=config_file, dst=f"./{self._data_dir}/{target_file}")
+
     @wait_for()
     def wait_for_addon_ready(self, cluster_id: str, addon_id: AddonId) -> bool:
         addon_status = self._get_addon_ocs_status(cluster_id)
@@ -248,6 +253,7 @@ class ClusterService:
             )
             cluster_config: str = json.loads(response.stdout)["kubeconfig"]
             save_to_file(config_file, cluster_config)
+            os.chmod(config_file, 0o600)
         return config_file
 
     def _save_onboarding_ticket_required_files(self) -> None:

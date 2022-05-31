@@ -52,6 +52,11 @@ def main() -> int:
     )
     cluster_service.wait_for_addon_ready(provider_cluster_id, AddonId.PROVIDER)
 
+    # Share the provider kubeconfig so ocs-monkey can identify the provider cluster.
+    cluster_service.share_kubeconfig_file(
+        provider_cluster_id, "provider-kubeconfig.yaml"
+    )
+
     # Install consumer addon.
     cluster_service.wait_for_cluster_ready(consumer_cluster_id)
     consumer_addon_params = {
@@ -66,6 +71,11 @@ def main() -> int:
         consumer_cluster_id, AddonId.CONSUMER.value, consumer_addon_params
     )
     cluster_service.wait_for_addon_ready(consumer_cluster_id, AddonId.CONSUMER)
+
+    # Share the consumer kubeconfig so ocs-monkey can identify the consumer cluster.
+    cluster_service.share_kubeconfig_file(
+        consumer_cluster_id, "consumer-kubeconfig.yaml"
+    )
 
     logger.info("Consumer addon installation completed.")
     return 0

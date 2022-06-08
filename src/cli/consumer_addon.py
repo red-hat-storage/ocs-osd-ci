@@ -60,8 +60,6 @@ def main() -> int:
     # Install consumer addon.
     cluster_service.wait_for_cluster_ready(consumer_cluster_id)
     consumer_addon_params = {
-        "size": "1",
-        "unit": "Ti",
         "storage-provider-endpoint": cluster_service.get_addon_ocs_provider_storage_endpoint(
             provider_cluster_id
         ),

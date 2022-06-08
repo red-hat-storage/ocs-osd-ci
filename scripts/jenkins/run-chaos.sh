@@ -36,4 +36,9 @@ export PROVIDER_KUBECONFIG=../.cluster/provider-kubeconfig.yaml
 KUBECONFIG="${PROVIDER_KUBECONFIG}" ./chaos_runner.py -t 7200 --monitor-deployment default/workload-ocs-monkey-generator \
     --monitor-deployment-cluster-config "${CONSUMER_KUBECONFIG}"
 
+# Clean up after a successful run.
+deactivate || true
+cd -
+make cleanup
+
 echo "CHAOS testing completed."

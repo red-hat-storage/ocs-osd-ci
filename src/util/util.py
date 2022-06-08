@@ -38,7 +38,7 @@ def run_cmd(cmd: list[str]) -> subprocess.CompletedProcess[str]:
             cmd, check=True, text=True, capture_output=True, timeout=10
         )
     except subprocess.CalledProcessError as error:
-        logger.exception("Command failed:\n%s", error.stderr)
+        logger.debug("Command failed:\n%s", error.stderr, exc_info=True)
         raise
     if completed_process.stdout:
         logger.debug(completed_process.stdout)

@@ -31,3 +31,6 @@ lint:
 
 run-chaos:
 	./scripts/jenkins/run-chaos.sh
+
+cleanup:
+	$(BIN_DIR)/python -m src.cli.cleanup

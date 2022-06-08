@@ -1,3 +1,4 @@
+import dbm
 import json
 import logging
 import os
@@ -5,6 +6,7 @@ import random
 import string
 from enum import Enum
 from shutil import copy
+from subprocess import CalledProcessError
 from typing import Any, Optional, Union
 
 from src.platform.kube import CustomObjectRequest, KubeClient, NotFoundError
@@ -50,6 +52,7 @@ class ClusterService:
         },
         "region": {"id": env("AWS_REGION")},
     }
+    _cluster_store: str
     _kube_client_instances: dict[str, KubeClient] = {}
     _ocm_config_file: str
     _ocm_config_template: dict[str, Union[str, list[str]]] = {
@@ -70,6 +73,7 @@ class ClusterService:
 
         self._data_dir = data_dir
         os.makedirs(os.path.abspath(self._data_dir), exist_ok=True)
+        self._cluster_store = f"{self._data_dir}/cluster_store.db"
 
         self._set_ocm_config()
         self._save_onboarding_ticket_required_files()
@@ -106,7 +110,7 @@ class ClusterService:
         cluster_name: str,
         subnets_ids: Optional[list[str]] = None,
         availability_zones: Optional[list[str]] = None,
-    ) -> dict[str, Any]:
+    ) -> str:
         request_body = self._cluster_install_data.copy()
         request_body["name"] = cluster_name
         if subnets_ids:
@@ -127,7 +131,10 @@ class ClusterService:
         result = run_cmd(["ocm", "post", self._api_base_url, "--body", body_file])
         if not result.stdout:
             raise ValueError("No cluster info received.")
-        return json.loads(result.stdout)
+        cluster_id = json.loads(result.stdout)["id"]
+        with dbm.open(self._cluster_store, "c") as cluster_store:
+            cluster_store[cluster_id] = cluster_name
+        return cluster_id
 
     def install_addon(
         self, cluster_id: str, addon_id: str, addon_params: dict[str, Any]
@@ -162,6 +169,24 @@ class ClusterService:
     def share_kubeconfig_file(self, cluster_id: str, target_file: str) -> None:
         config_file = self._save_cluster_config_file(cluster_id)
         copy(src=config_file, dst=f"./{self._data_dir}/{target_file}")
+
+    def uninstall_all_clusters(self) -> None:
+        with dbm.open(self._cluster_store, "c") as cluster_store:
+            for cluster_id in cluster_store.keys():
+                if isinstance(cluster_id, bytes):
+                    cluster_id = cluster_id.decode("utf-8")
+                    cluster_name = cluster_store[cluster_id].decode("utf-8")
+                try:
+                    run_cmd(["ocm", "delete", "cluster", cluster_id])
+                except CalledProcessError as error:
+                    error_info = json.loads(error.stderr)
+                    if error_info["id"] == "404":
+                        logger.info("Cluster %s not found.", cluster_name)
+                        continue
+                    raise
+                finally:
+                    del cluster_store[cluster_id]
+                logger.info("Cluster %s is being uninstalled.", cluster_name)
 
     @wait_for()
     def wait_for_addon_ready(self, cluster_id: str, addon_id: AddonId) -> bool:

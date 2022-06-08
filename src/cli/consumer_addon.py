@@ -20,7 +20,7 @@ def main() -> int:
         default=ClusterService.random_cluster_name(prefix="chaos-p"),
     )
     logger.info("PROVIDER CLUSTER NAME: %s", provider_cluster_name)
-    provider_cluster_id = cluster_service.install(provider_cluster_name)["id"]
+    provider_cluster_id = cluster_service.install(provider_cluster_name)
     logger.info("PROVIDER CLUSTER ID: %s", provider_cluster_id)
 
     # Add inbound rules required for provider addon installation.
@@ -39,7 +39,7 @@ def main() -> int:
         cluster_name=consumer_cluster_name,
         subnets_ids=provider_cluster_subnet_info.subnet_ids,
         availability_zones=provider_cluster_subnet_info.availability_zones,
-    )["id"]
+    )
     logger.info("CONSUMER CLUSTER ID: %s", consumer_cluster_id)
 
     # Install provider addon.

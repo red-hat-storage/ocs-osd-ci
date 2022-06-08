@@ -30,6 +30,7 @@ source setup-env.sh
 export CONSUMER_KUBECONFIG=../.cluster/consumer-kubeconfig.yaml
 KUBECONFIG="${CONSUMER_KUBECONFIG}" helm install workload ./helm/ocs-monkey-generator \
      --set workload.runtime=9000
+sleep 60  # Wait for the workload deployment to be ready.
 
 # Start chaos runner.
 export PROVIDER_KUBECONFIG=../.cluster/provider-kubeconfig.yaml

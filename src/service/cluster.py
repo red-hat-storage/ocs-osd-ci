@@ -190,13 +190,18 @@ class ClusterService:
 
     @wait_for()
     def wait_for_addon_ready(self, cluster_id: str, addon_id: AddonId) -> bool:
-        addon_status = self._get_addon_ocs_status(cluster_id)
-        if addon_status == "Succeeded":
+        if (addon_status := self._get_addon_ocs_status(cluster_id)) == "Succeeded":
             logger.info("Addon %s is ready.", addon_id.value)
             return True
-        if addon_status == "Failed":
-            raise ValueError(f"Addon {addon_id.value} is in Failed state.")
-        logger.info("Addon %s is not ready yet...", addon_id.value)
+        # @TODO: uncomment this check when the issue below is fixed:
+        # https://bugzilla.redhat.com/show_bug.cgi?id=2076207
+        # if addon_status == "Failed":
+        #     raise ValueError(f"Addon {addon_id.value} is in Failed state.")
+        logger.info(
+            "Addon %s is not ready yet... Current status: %s",
+            addon_id.value,
+            addon_status,
+        )
         return False
 
     @wait_for()

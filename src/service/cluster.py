@@ -64,7 +64,7 @@ class ClusterService:
         "url": "https://api.stage.openshift.com",
     }
     _onboarding_ticket_generator_file: str
-    _onboarding_private_key: str
+    _onboarding_private_key: str = env("ONBOARDING_PRIVATE_KEY_FILE")
 
     def __init__(self, data_dir: str = ".cluster") -> None:
         os.makedirs(self._bin_dir, exist_ok=True)
@@ -300,10 +300,6 @@ class ClusterService:
             save_to_file(self._onboarding_ticket_generator_file, file_content)
             # Give execution permissions.
             os.chmod(self._onboarding_ticket_generator_file, 0o700)
-        # Create the onboarding private key.
-        self._onboarding_private_key = f"{self._data_dir}/onboarding-private-key"
-        if not os.path.exists(self._onboarding_private_key):
-            save_to_file(self._onboarding_private_key, env("ONBOARDING_PRIVATE_KEY"))
 
     def _set_ocm_config(self) -> None:
         self._ocm_config_file = f"{self._data_dir}/ocm.json"

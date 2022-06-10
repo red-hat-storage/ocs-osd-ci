@@ -12,6 +12,7 @@ logger = logging.getLogger()
 
 def main() -> int:
     logger.info("Starting consumer addon installation...")
+    aws_service = AWSService()
     cluster_service = ClusterService()
 
     # Create provider cluster.
@@ -25,7 +26,6 @@ def main() -> int:
 
     # Add inbound rules required for provider addon installation.
     cluster_service.wait_for_cluster_ready(provider_cluster_id)
-    aws_service = AWSService()
     aws_service.add_provider_addon_inbound_rules(provider_cluster_name)
 
     # Create consumer cluster.

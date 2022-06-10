@@ -30,6 +30,8 @@ class AWSService:
             aws_secret_access_key=env("AWS_SECRET_ACCESS_KEY"),
             region_name=env("AWS_REGION"),
         )
+        # Check the connectivity through a canary test:
+        self._ec2_client.describe_regions()
 
     def add_provider_addon_inbound_rules(self, cluster_name: str) -> None:
         describe_result: DescribeSecurityGroupsResultTypeDef = (

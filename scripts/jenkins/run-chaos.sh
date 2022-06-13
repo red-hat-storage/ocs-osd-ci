@@ -2,6 +2,21 @@
 
 set -ex
 
+if [[ -n "${JENKINS_HOME}" ]]; then
+    on_error() {
+        ROOT_PATH=$PWD
+        set +x
+        if [[ "$1" != "0" ]]; then
+            printf "\n\nERROR $1 thrown on line $2\n\n"
+            printf "\n\nDisplaying logs:\n\n"
+            find "${ROOT_PATH}" -iname "*.log" | xargs cat
+            printf "\n\nTEST FAILED.\n\n"
+        fi
+    }
+
+    trap 'on_error $? $LINENO' ERR
+fi
+
 echo "CHAOS testing: setting up..."
 
 # Install deps.

@@ -1,5 +1,7 @@
 # CI test runner for OCS on OpenShift Dedicated
 
+[![Check python code](https://github.com/alfonsomthd/ocs-osd-ci/actions/workflows/main.yaml/badge.svg)](https://github.com/alfonsomthd/ocs-osd-ci/actions/workflows/main.yaml)
+
 ## Installation
 
 Inline comment shows how to override defaults.

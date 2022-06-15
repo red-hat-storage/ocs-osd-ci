@@ -48,7 +48,7 @@ class ClusterService:
         "name": "",
         "nodes": {
             "compute": 3,
-            "compute_machine_type": {"id": "m5.4xlarge"},
+            "compute_machine_type": {"id": "m5.2xlarge"},
         },
         "region": {"id": env("AWS_REGION")},
     }

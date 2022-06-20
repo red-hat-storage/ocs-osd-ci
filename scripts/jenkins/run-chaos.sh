@@ -20,7 +20,7 @@ fi
 echo "CHAOS testing: setting up..."
 
 # Install deps.
-sudo dnf install -y curl openssl python36 python39
+sudo dnf install -y cmake curl openssl python36 python39
 
 # Install helm.
 if [[ -z "$(command -v helm)" ]]; then

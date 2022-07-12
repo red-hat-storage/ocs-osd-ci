@@ -29,10 +29,6 @@ class AddonId(Enum):
 
 
 class ClusterService:
-    _addon_install_data: dict[str, Any] = {
-        "addon": {"id": ""},
-        "parameters": {"items": []},
-    }
     _api_base_url = "/api/clusters_mgmt/v1/clusters"
     _bin_dir: str = os.path.abspath(os.path.expanduser("~/bin"))
     _data_dir: str
@@ -222,12 +218,17 @@ class ClusterService:
     def _get_addon_install_request_file_path(
         self, addon_id: str, params: dict[str, Any]
     ) -> str:
-        body = self._addon_install_data.copy()
-        body["addon"]["id"] = addon_id
+        addon_install_data: dict[str, Any] = {
+            "addon": {"id": ""},
+            "parameters": {"items": []},
+        }
+        addon_install_data["addon"]["id"] = addon_id
         for param_id, param_value in params.items():
-            body["parameters"]["items"].append({"id": param_id, "value": param_value})
+            addon_install_data["parameters"]["items"].append(
+                {"id": param_id, "value": param_value}
+            )
         return save_to_json_file(
-            f"{self._data_dir}/install-addon-{addon_id}.json", body
+            f"{self._data_dir}/install-addon-{addon_id}.json", addon_install_data
         )
 
     def _get_addon_ocs_status(self, cluster_id: str) -> str:
